@@ -52,24 +52,26 @@ def search_excel_files_and_create_summary(output_path):
                 file_path = os.path.join(root, file)
                 try:
                     # Read the Excel file
-                    df = pd.read_excel(file_path, engine='openpyxl')
+                    xls = pd.ExcelFile(file_path, engine='openpyxl')
+                    for sheet_name in xls.sheet_names:
+                        df = pd.read_excel(xls, sheet_name=sheet_name)
 
-                    keywords = ['part', 'description', 'cost', 'price', 'supplier', 'variance', 'spec']
-                    output_columns = [col for col in df.columns if any(keyword.casefold() in col.casefold() for keyword in keywords)]
+                        keywords = ['part', 'description', 'cost', 'price', 'supplier', 'variance', 'spec']
+                        output_columns = [col for col in df.columns if any(keyword.casefold() in col.casefold() for keyword in keywords)]
 
-                    relevant_data = df[output_columns]
-                    print(f"Selected columns in {file}: {output_columns}")
-                    print(relevant_data.head())
+                        relevant_data = df[output_columns]
+                        print(f"Selected columns in {file} - {sheet_name}: {output_columns}")
+                        print(relevant_data.head())
 
-                    # Separate data based on ODM and append to respective DataFrames
-                    file_name = file.lower()
-                    if 'quanta' in file_name:
-                        quanta_data = pd.concat([quanta_data, relevant_data], ignore_index=True)
-                        print(f"Added data from {file} to 'Quanta' sheet")
+                        # Separate data based on ODM and append to respective DataFrames
+                        file_name = file.lower()
+                        if 'quanta' in file_name:
+                            quanta_data = pd.concat([quanta_data, relevant_data], ignore_index=True)
+                            print(f"Added data from {file} - {sheet_name} to 'Quanta' sheet")
 
-                    if 'compal' in file_name:
-                        compal_data = pd.concat([compal_data, relevant_data], ignore_index=True)
-                        print(f"Added data from {file} to 'Compal' sheet")
+                        if 'compal' in file_name:
+                            compal_data = pd.concat([compal_data, relevant_data], ignore_index=True)
+                            print(f"Added data from {file} - {sheet_name} to 'Compal' sheet")
 
                 except Exception as e:
                     print(f"Error processing file {file_path}: {e}")
