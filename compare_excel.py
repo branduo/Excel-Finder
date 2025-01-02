@@ -1,64 +1,81 @@
+import os
 import pandas as pd
-import glob
 
-# Define categories
-desired_columns = ["part", "description", "cost", "odm/site", "supplier", "varianceofcost", "specifications existing (yes/no)"]
+def search_excel_files_and_create_summary(output_path):
+    # Define the directory to search for Excel files
+    search_directory = input("Enter the directory to search for Excel files: ")
 
-# Path to folder containing Excel files
-folder_path = "./Downloads/"
-excel_files = glob.glob(f"{folder_path}/*.csv")
-print(f"Excel files found: {excel_files}")
+    # Define the output columns
+    output_columns = []
 
-# List to hold DataFrames
-dataframes = []
+    # Initialize an empty DataFrame for consolidated data
+    #consolidated_data = pd.DataFrame(columns=output_columns)
+    quanta_data = pd.DataFrame(columns=output_columns)
+    compal_data = pd.DataFrame(columns=output_columns)
 
-# Loop through each Excel file
-for file in excel_files:
-    for file in excel_files:
-        print(f"Reading file: {file}")
-        all_sheets = pd.read_excel(file, sheet_name=None)
-        if not all_sheets:
-            print(f"No sheets found in file: {file}")
+    # Search for Excel files
+    for root, dirs, files in os.walk(search_directory):
+        for file in files:
+            if file.endswith(('.csv')):
+                file_path = os.path.join(root, file)
+                try:
+                    for encoding in ['utf-8', 'ISO-8859-1', 'Windows-1252']:
+                        try:
+                            df = pd.read_csv(file_path, encoding = encoding)
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        raise UnicodeDecodeError("All encodings failed.")
+                
+                    keywords = ['part', 'description', 'cost', 'price', 'supplier', 'variance', 'spec']
+                    
+                    output_columns = [col for col in df.columns if any(keyword.casefold() in col.casefold() for keyword in keywords)]
 
-    print(f"Processing file: {file}")
-    # Read all sheets in the file
-    all_sheets = pd.read_excel(file, sheet_name=None)
+                    relevant_data = df[output_columns]
+                    print(f"Selected columns in {file}: {output_columns}")
+                    print(relevant_data.head())
+
+                    file_name = file.lower()
+                    if 'quanta' in file_name:
+                        quanta_data = pd.concat([quanta_data, relevant_data], ignore_index=True)
+                        print(f"Added data from {file} to 'Quanta' sheet")
+
+                    if 'compal' in file_name:
+                        compal_data = pd.concat([compal_data, relevant_data], ignore_index=True)
+                        print(f"Added data from {file} to 'Compal' sheet")
+
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
+
+                    # Append to consolidated DataFrame
+                    #consolidated_data = pd.concat([consolidated_data, relevant_data], ignore_index=True)
+
+            #if file.endswith(('.xlsx')):
+            #    file_path = os.path.join(root, file)
+            #    try:
+            #        # Read the Excel file
+            #        df = pd.read_excel(file_path, engine='openpyxl')
+#
+            #        # Filter and rename columns if they exist in the file
+            #        relevant_data = df.reindex(columns=output_columns, fill_value=None)
+#
+            #        # Append to consolidated DataFrame
+            #        consolidated_data = pd.concat([consolidated_data, relevant_data], ignore_index=True)
+            #    except Exception as e:
+            #        print(f"Error processing file {file_path}: {e}")
+
+    with pd.ExcelWriter('consolidated_data.xlsx', engine = 'openpyxl') as writer:
+        quanta_data.to_excel(writer, sheet_name = 'Quanta')
+        compal_data.to_excel(writer, sheet_name = 'Compal')
+    print(f"Consolidated Excel file created at: {output_path}")
+
+    # Write the consolidated data to an Excel file
+    #consolidated_data.to_excel(output_path, index=False)
     
-    for sheet_name, df in all_sheets.items():
-        print(f"  Processing sheet: {sheet_name}")
-        
-        # Standardize column names (example mapping)
-        column_mapping = {
-            "Part Number": "part",
-            "Item Description": "description",
-            "Unit Cost": "cost",
-            "ODM/Location": "odm/site",
-            "Supplier Name": "supplier",
-            "Cost Variance": "varianceofcost",
-            "Specs Existing": "specifications existing (yes/no)"
-        }
-        
-        # Rename columns based on mapping
-        df = df.rename(columns=column_mapping)
-        
-        # Keep only desired columns
-        df = df[[col for col in desired_columns if col in df.columns]]
-        
-        # Normalize 'specifications existing (yes/no)'
-        df["specifications existing (yes/no)"] = df["specifications existing (yes/no)"].str.strip().str.lower().map({"yes": "Yes", "no": "No"})
-        
-        # Add source file and sheet for traceability
-        df["Source File"] = file
-        df["Sheet Name"] = sheet_name
-        
-        # Append to list of DataFrames
-        dataframes.append(df)
 
-# Combine all DataFrames into one
-#combined_df = pd.concat(dataframes, ignore_index=True)
+# Specify the output Excel file path
+output_file_path = "consolidated_data.xlsx"
 
-# Save to an Excel file
-output_file = "comparison_results.xlsx"
-combined_df.to_excel(output_file, index=False)
-
-print(f"Comparison results saved to '{output_file}'.")
+# Run the function
+search_excel_files_and_create_summary(output_file_path)
