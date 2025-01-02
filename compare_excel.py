@@ -29,13 +29,13 @@ def search_excel_files_and_create_summary(output_path):
                         raise UnicodeDecodeError("All encodings failed.")
                 
                     keywords = ['part', 'description', 'cost', 'price', 'supplier', 'variance', 'spec']
-                    
                     output_columns = [col for col in df.columns if any(keyword.casefold() in col.casefold() for keyword in keywords)]
 
                     relevant_data = df[output_columns]
                     print(f"Selected columns in {file}: {output_columns}")
                     print(relevant_data.head())
 
+                    # Separate data based on ODM and append to respective DataFrames
                     file_name = file.lower()
                     if 'quanta' in file_name:
                         quanta_data = pd.concat([quanta_data, relevant_data], ignore_index=True)
@@ -48,31 +48,36 @@ def search_excel_files_and_create_summary(output_path):
                 except Exception as e:
                     print(f"Error processing file {file_path}: {e}")
 
-                    # Append to consolidated DataFrame
-                    #consolidated_data = pd.concat([consolidated_data, relevant_data], ignore_index=True)
+            if file.endswith(('.xlsx')):
+                file_path = os.path.join(root, file)
+                try:
+                    # Read the Excel file
+                    df = pd.read_excel(file_path, engine='openpyxl')
 
-            #if file.endswith(('.xlsx')):
-            #    file_path = os.path.join(root, file)
-            #    try:
-            #        # Read the Excel file
-            #        df = pd.read_excel(file_path, engine='openpyxl')
-#
-            #        # Filter and rename columns if they exist in the file
-            #        relevant_data = df.reindex(columns=output_columns, fill_value=None)
-#
-            #        # Append to consolidated DataFrame
-            #        consolidated_data = pd.concat([consolidated_data, relevant_data], ignore_index=True)
-            #    except Exception as e:
-            #        print(f"Error processing file {file_path}: {e}")
+                    keywords = ['part', 'description', 'cost', 'price', 'supplier', 'variance', 'spec']
+                    output_columns = [col for col in df.columns if any(keyword.casefold() in col.casefold() for keyword in keywords)]
+
+                    relevant_data = df[output_columns]
+                    print(f"Selected columns in {file}: {output_columns}")
+                    print(relevant_data.head())
+
+                    # Separate data based on ODM and append to respective DataFrames
+                    file_name = file.lower()
+                    if 'quanta' in file_name:
+                        quanta_data = pd.concat([quanta_data, relevant_data], ignore_index=True)
+                        print(f"Added data from {file} to 'Quanta' sheet")
+
+                    if 'compal' in file_name:
+                        compal_data = pd.concat([compal_data, relevant_data], ignore_index=True)
+                        print(f"Added data from {file} to 'Compal' sheet")
+
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
 
     with pd.ExcelWriter('consolidated_data.xlsx', engine = 'openpyxl') as writer:
         quanta_data.to_excel(writer, sheet_name = 'Quanta')
         compal_data.to_excel(writer, sheet_name = 'Compal')
     print(f"Consolidated Excel file created at: {output_path}")
-
-    # Write the consolidated data to an Excel file
-    #consolidated_data.to_excel(output_path, index=False)
-    
 
 # Specify the output Excel file path
 output_file_path = "consolidated_data.xlsx"
